@@ -72,6 +72,8 @@ def train(cfg_path: str = "config.yaml"):
     train_cfg = cfg["training"]
     model_cfg = cfg["model"]
 
+    torch.manual_seed(cfg["data"]["random_seed"])
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     train_ds, val_ds, input_dim, n_classes = make_data(cfg)

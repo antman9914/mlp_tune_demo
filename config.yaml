@@ -1,0 +1,22 @@
+# MLP 超参数配置
+# 修改这里的值后运行 train.py，然后执行 /mlp-tune 进行分析
+
+data:
+  n_samples: 800          # 训练集样本数
+  n_features: 20          # 输入维度
+  n_classes: 2            # 分类类别数
+  val_ratio: 0.2          # 验证集比例
+  random_seed: 42
+
+model:
+  hidden_dim: 64          # 隐藏层维度（固定，不搜索）
+  activation: relu        # 激活函数（固定，不搜索）
+  dropout_rate: 0.2       # ← 搜索目标
+
+training:
+  learning_rate: 0.005    # ← 搜索目标
+  weight_decay: 0.001     # ← 搜索目标
+  batch_size: 32
+  epochs: 100
+  optimizer: adam
+  lr_scheduler: none      # none / step / cosine

@@ -9,14 +9,15 @@ data:
   random_seed: 42
 
 model:
-  hidden_dim: 64          # 隐藏层维度（固定，不搜索）
-  activation: relu        # 激活函数（固定，不搜索）
-  dropout_rate: 0.2       # ← 搜索目标
+  hidden_dims: [64]       # 每个隐藏层的维度，列表长度即隐藏层数
+  activation: relu        # 激活函数：relu / tanh / gelu
+  dropout_rate: 0.40
 
 training:
-  learning_rate: 0.005    # ← 搜索目标
-  weight_decay: 0.001     # ← 搜索目标
+  learning_rate: 0.0014
+  weight_decay: 0.0012
   batch_size: 32
-  epochs: 100
+  epochs: 50
   optimizer: adam
   lr_scheduler: none      # none / step / cosine
+  early_stop_patience: 20

@@ -1,5 +1,5 @@
 """
-两层 MLP 训练脚本
+MLP 训练脚本
 用法：python train.py [--config config.yaml]
 
 训练结果写入 logs/exp_TIMESTAMP.csv，格式：
@@ -21,7 +21,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader, TensorDataset
 
-from model import TwoLayerMLP
+from model import MLP
 
 
 def load_config(path: str) -> dict:
@@ -80,9 +80,11 @@ def train(cfg_path: str = "config.yaml"):
     train_loader = DataLoader(train_ds, batch_size=train_cfg["batch_size"], shuffle=True)
     val_loader = DataLoader(val_ds, batch_size=256)
 
-    model = TwoLayerMLP(
+    # 兼容旧版 hidden_dim 字段
+    hidden_dims = model_cfg.get("hidden_dims") or [model_cfg["hidden_dim"]]
+    model = MLP(
         input_dim=input_dim,
-        hidden_dim=model_cfg["hidden_dim"],
+        hidden_dims=hidden_dims,
         output_dim=n_classes,
         dropout_rate=model_cfg["dropout_rate"],
         activation=model_cfg["activation"],
@@ -108,13 +110,18 @@ def train(cfg_path: str = "config.yaml"):
     log_path = f"logs/exp_{timestamp}.csv"
     summary_path = f"logs/exp_{timestamp}_summary.json"
 
-    print(f"训练开始 | lr={train_cfg['learning_rate']} | "
+    print(f"训练开始 | hidden_dims={hidden_dims} | lr={train_cfg['learning_rate']} | "
           f"wd={train_cfg['weight_decay']} | "
           f"dropout={model_cfg['dropout_rate']}")
     print(f"日志写入: {log_path}")
 
     rows = []
     best_val_loss = float("inf")
+    best_train_acc = 0.0
+    best_val_acc_at_best_train = 0.0
+    best_train_epoch = 0
+    patience = train_cfg.get("early_stop_patience", 0)
+    epochs_no_improve = 0
 
     for epoch in range(1, train_cfg["epochs"] + 1):
         model.train()
@@ -139,6 +146,13 @@ def train(cfg_path: str = "config.yaml"):
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
+        if train_acc > best_train_acc:
+            best_train_acc = train_acc
+            best_val_acc_at_best_train = val_acc
+            best_train_epoch = epoch
+            epochs_no_improve = 0
+        else:
+            epochs_no_improve += 1
 
         row = {
             "epoch": epoch,
@@ -153,6 +167,10 @@ def train(cfg_path: str = "config.yaml"):
             print(f"Epoch {epoch:3d}/{train_cfg['epochs']} | "
                   f"train_loss={train_loss:.4f} train_acc={train_acc:.3f} | "
                   f"val_loss={val_loss:.4f} val_acc={val_acc:.3f}")
+
+        if patience > 0 and epochs_no_improve >= patience:
+            print(f"Early stopping at epoch {epoch} (train_acc no improvement for {patience} epochs)")
+            break
 
     # 写 CSV
     with open(log_path, "w", newline="") as f:
@@ -169,6 +187,9 @@ def train(cfg_path: str = "config.yaml"):
         "train_acc_final": rows[-1]["train_acc"],
         "val_acc_final": rows[-1]["val_acc"],
         "best_val_loss": round(best_val_loss, 6),
+        "best_train_acc": round(best_train_acc, 6),
+        "best_val_acc_at_best_train": round(best_val_acc_at_best_train, 6),
+        "best_train_epoch": best_train_epoch,
         "timestamp": timestamp,
     }
     with open(summary_path, "w") as f:
